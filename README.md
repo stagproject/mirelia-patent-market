@@ -12,16 +12,41 @@ Mirelia provides highly structured, AI-optimized JSON patent datasets. Designed 
   - `attr_performance`: Normalized quantitative performance metrics.
 - **Autonomous E2E:** End-to-end autonomous discovery, cryptocurrency payment, and data delivery.
 
-## 📂 Technological Scope (Expanding Daily)
-We aggregate and structure critical patents across all major CPC classifications:
-- **A**: Agriculture, Bio-tech, Medical, Food tech.
-- **B**: Robotics, Manufacturing, 3D Printing, Advanced Vehicles.
-- **C**: Material science, Green chemistry, Metallurgy.
-- **D**: Textiles, Paper, Advanced materials.
-- **E**: Smart infrastructure, Fixed constructions, Mining.
-- **F**: Fluid mechanics, Mechanical engineering, Next-gen engines.
-- **G**: Optics, Computing, Physics, AI hardware, Quantum.
-- **H**: Semiconductors, Electricity, 6G, IoT, Blockchain.
+## 📂 Technological Scope (Detailed CPC Classifications)
+We aggregate and structure critical patents across high-demand technology sectors. Our database is continuously expanding, targeting the following key CPC/IPC classes:
+
+### 🧬 A: Human Necessities (Bio, Med, Agri)
+- **A01 (Agriculture/Forestry):** Smart Agriculture, AgriTech, Harvester Drones, Precision Farming.
+- **A61 (Medical/Veterinary):** MedTech, Pharmaceuticals, Surgical Devices, Healthcare AI.
+- **A63 (Sports/Amusement):** AR/VR Gaming, Wearable Tech.
+
+### ⚙️ B: Performing Operations & Transport
+- **B25 (Manipulators/Tools):** Robotics, Robotic Arms, End Effectors, Factory Automation.
+- **B29 (Working of Plastics):** Advanced Manufacturing, Injection Molding.
+- **B33 / B41 (Printing):** 3D Printing, Additive Manufacturing, Advanced Image Processing.
+- **B60 (Vehicles):** EV (Electric Vehicles), Autonomous Driving, ADAS, Mobility Tech.
+- **B64 (Aviation):** UAV, Drones, Aerospace Engineering, eVTOL.
+
+### 🧪 C: Chemistry & Metallurgy
+- **C01 / C07 (Chemistry):** Inorganic/Organic Chemistry, Green Chemistry, Advanced Materials.
+- **C08 (Organic Macromolecules):** Polymers, Smart Materials.
+- **C12 (Biochemistry):** Genetic Engineering, Synthetic Biology, CRISPR, Fermentation.
+- **C25 (Electrolytic Processes):** Hydrogen Production, Clean Energy Tech.
+
+### 🏗️ E & F: Fixed Constructions & Mechanical Engineering
+- **E02 / E04 (Building/Mining):** Smart Infrastructure, Construction Tech.
+- **F01 / F02 (Engines/Turbines):** Next-Gen Jet Engines, Fluid Mechanics, Gas Turbines.
+- **F24 (Heating/Cooling):** Thermal Management, HVAC, Energy Efficiency.
+
+### 💻 G: Physics & Computing (Highest AI Demand)
+- **G01 (Measuring/Testing):** LiDAR, Radar, Advanced Sensors, Terahertz Sensing.
+- **G02 (Optics):** Optical Fiber, Photonics, AR/VR Displays.
+- **G06 (Computing/Data Processing):** Artificial Intelligence (AI), Machine Learning (ML), LLM Architectures, Quantum Computing, Neural Networks, Computer Vision.
+
+### ⚡ H: Electricity & Communication
+- **H01 (Basic Electric Elements):** Semiconductors, Solid-State Batteries, Photovoltaics, Chip Packaging.
+- **H02 (Electric Power):** Smart Grids, Power Conversion, Renewable Energy.
+- **H04 (Electric Communication):** 5G/6G Networks, IoT (Internet of Things), Blockchain, Wireless Protocols.
 
 ## 📖 Data Dictionary (Schema)
 Upon successful purchase, the agent will receive an array of JSON objects containing the following 31 strict fields:
