@@ -1,0 +1,16 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.github.stagproject/mirelia-patent-market",
+  "version": "1.0.0",
+  "description": "AI-optimized patent data marketplace providing structured JSON datasets.",
+  "repository": {
+    "url": "https://github.com/stagproject/mirelia-patent-market",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://sse--mirelia.run.tools/sse"
+    }
+  ]
+}
