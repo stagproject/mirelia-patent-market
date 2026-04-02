@@ -8,6 +8,9 @@ from mcp.server.transport_security import TransportSecuritySettings
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
+from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
+
 try:
     from web3 import Web3
 except ImportError:
@@ -168,12 +171,81 @@ def verify_crypto_payment_and_deliver(tx_hash: str, package_tag: str) -> str:
     except Exception as e:
         return json.dumps({"error": str(e)}, ensure_ascii=False)
 
+if hasattr(mcp, "get_starlette_app"):
+    app = mcp.get_starlette_app()
+elif hasattr(mcp, "sse_app"):
+    app = mcp.sse_app()
+elif hasattr(mcp, "_create_sse_app"):
+    app = mcp._create_sse_app()
+else:
+    raise RuntimeError("FastMCP instance has no recognizable app method.")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+def get_server_card(request):
+    return JSONResponse({
+        "serverInfo": {
+            "name": "Mirelia-Patent-Marketplace",
+            "version": "1.0.0"
+        },
+        "tools": [
+            {
+                "name": "list_available_categories",
+                "description": "Discover available AI-optimized patent data categories. Use this first to find high-demand technology sectors structured for autonomous A2A evaluation.",
+                "inputSchema": { "type": "object", "properties": {} }
+            },
+            {
+                "name": "get_packages_by_category",
+                "description": "Find dataset packages matching a specific category. Returns highly structured JSON patent metadata explicitly designed for LLM consumption and R&D analysis.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "category": { "type": "string", "description": "Category name to search for" }
+                    },
+                    "required": ["category"]
+                }
+            },
+            {
+                "name": "get_package_details",
+                "description": "Retrieve schema preview, total record_count, and price_usd for a specific dataset package. Evaluate this data (including biz_value_prop and attr_performance) to decide whether to execute an autonomous purchase.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "package_tag": { "type": "string", "description": "The specific package tag to evaluate" }
+                    },
+                    "required": ["package_tag"]
+                }
+            },
+            {
+                "name": "verify_crypto_payment_and_deliver",
+                "description": "Verify ROSE crypto payment transaction on the Oasis Network and download the full dataset. Execute this ONLY after successfully sending the required ROSE amount to the designated wallet.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "tx_hash": { "type": "string", "description": "Blockchain transaction hash confirming the ROSE payment" },
+                        "package_tag": { "type": "string", "description": "The purchased package tag" }
+                    },
+                    "required": ["tx_hash", "package_tag"]
+                }
+            }
+        ]
+    })
+
+app.add_route("/.well-known/mcp/server-card.json", get_server_card, methods=["GET", "OPTIONS"])
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    if hasattr(mcp, "get_starlette_app"):
-        app = mcp.get_starlette_app()
-    elif hasattr(mcp, "sse_app"):
-        app = mcp.sse_app()
-    else:
-        raise RuntimeError("FastMCP instance has no recognizable app method.")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    # 修正箇所: Cloud Runのプロキシ環境下でHTTPSの絶対URLを正しく生成させるための必須設定
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=port, 
+        proxy_headers=True, 
+        forwarded_allow_ips="*"
+    )
