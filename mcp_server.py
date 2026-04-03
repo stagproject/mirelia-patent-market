@@ -8,6 +8,8 @@ from mcp.server.transport_security import TransportSecuritySettings
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
+from starlette.applications import Starlette
+from starlette.routing import Mount
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
 
@@ -171,14 +173,32 @@ def verify_crypto_payment_and_deliver(tx_hash: str, package_tag: str) -> str:
     except Exception as e:
         return json.dumps({"error": str(e)}, ensure_ascii=False)
 
+# ---- 変更箇所: Streamable HTTPとSSEの両方に対応するルーティング統合 ----
+sse_app = None
 if hasattr(mcp, "get_starlette_app"):
-    app = mcp.get_starlette_app()
+    sse_app = mcp.get_starlette_app()
 elif hasattr(mcp, "sse_app"):
-    app = mcp.sse_app()
+    sse_app = mcp.sse_app()
 elif hasattr(mcp, "_create_sse_app"):
-    app = mcp._create_sse_app()
-else:
+    sse_app = mcp._create_sse_app()
+
+streamable_app = getattr(mcp, "streamable_http_app", None)
+if callable(streamable_app):
+    streamable_app = streamable_app()
+
+routes = []
+if streamable_app:
+    # 最新仕様（Streamable HTTP）を /mcp にマウント
+    routes.append(Mount("/mcp", app=streamable_app))
+if sse_app:
+    # 旧仕様（SSE）をルートにマウント（既存の /sse および /messages のパスを維持）
+    routes.append(Mount("/", app=sse_app))
+
+if not routes:
     raise RuntimeError("FastMCP instance has no recognizable app method.")
+
+app = Starlette(routes=routes)
+# ------------------------------------------------------------------------
 
 app.add_middleware(
     CORSMiddleware,

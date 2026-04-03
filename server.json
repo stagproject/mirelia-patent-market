@@ -10,7 +10,7 @@
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://sse--mirelia.run.tools/sse"
+      "url": "https://sse--mirelia.run.tools/mcp"
     }
   ]
 }
