@@ -1,6 +1,0 @@
-mcp[sse]
-uvicorn
-requests
-web3
-supabase
-python-dotenv
