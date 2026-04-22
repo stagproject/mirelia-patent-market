@@ -10,7 +10,7 @@
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://mirelia-mcp-server-1065601264332-1065601264332.us-central1.run.app/mcp"
+      "url": "https://mirelia-mcp-server-1065601264332-1065601264332.us-central1.run.app/sse"
     }
   ]
 }

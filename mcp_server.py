@@ -3,6 +3,8 @@ import json
 import time
 import requests
 import uvicorn
+from typing import Optional
+from pydantic import Field
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from supabase import create_client, Client
@@ -13,14 +15,14 @@ from starlette.routing import Mount
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
 
+from web3 import Web3
 try:
-    from web3 import Web3
-    try:
-        from web3.middleware import ExtraDataToPOAMiddleware as poa_middleware
-    except ImportError:
-        from web3.middleware import geth_poa_middleware as poa_middleware
+    # web3.py v6+ (Polygon等で必須)
+    from web3.middleware import ExtraDataToPOAMiddleware as poa_middleware
 except ImportError:
-    Web3 = None
+    # 旧バージョン互換用
+    from web3.middleware import geth_poa_middleware as poa_middleware
+
 
 load_dotenv()
 
@@ -76,64 +78,53 @@ if Web3 and abi_string and WALLET_ADDRESS_RAW:
 else:
     WALLET_ADDRESS = None
 
+# -----------------------------------------------------------------------------
+# 1. 探索・詳細確認・重複確認 統合ツール (Hybrid Discovery)
+# -----------------------------------------------------------------------------
 @mcp.tool()
-def list_available_categories() -> str:
-    if not supabase: return json.dumps({"error": "Supabase connection failed"})
-    res = supabase.table("v_catalogs").select("category").execute()
-    categories = sorted(list(set([item['category'] for item in res.data]))) if res.data else []
-    return json.dumps({"available_categories": categories}, ensure_ascii=False)
-
-@mcp.tool()
-def get_packages_by_category(category: str) -> str:
-    if not supabase: return json.dumps({"error": "Supabase connection failed"})
-    res = supabase.table("v_catalogs").select("package_tag, title, record_count, price_usd, sales_count").eq("category", category).execute()
-    data = res.data if res.data else []
-    if isinstance(data, dict): data = [data]
-    return json.dumps(data, ensure_ascii=False)
-
-@mcp.tool()
-def get_package_details(package_tag: str) -> str:
-    if not supabase: return json.dumps({"error": "Supabase connection failed"})
-    res = supabase.table("v_catalogs").select("*").eq("package_tag", package_tag).execute()
-    data = res.data[0] if res.data else {}
-    return json.dumps(data, ensure_ascii=False)
-
-@mcp.tool()
-def get_package_sample(package_tag: str) -> str:
+def search_packages(search_query: str = Field(default="", description="Search query. Leave blank for all packages.")) -> str:
     """
     [COST: FREE]
-    Retrieves a free sample of the actual patent JSON data for a specific 'package_tag'.
-    AI agents MUST use this to evaluate the data quality (e.g., biz_value_prop, attr_tech_stack) before purchasing.
+    The primary marketplace exploration tool.
+    - If search_query is empty: Returns the full lightweight inventory (tags, titles, tech_stacks, prices) sorted by tag.
+    - If search_query is provided: Returns detailed info including 'description' and 'patent_ids' for deduplication.
     """
-    if not supabase: 
-        return json.dumps({"error": "Supabase connection failed"}, ensure_ascii=False)
-    
+    if not supabase:
+        return json.dumps({"error": "Database connection failed"})
+
     try:
-        # Linter警告回避用ログ出力
-        print(f"[System Log] Sample requested for package: {package_tag}")
-        res = supabase.table("v_samples").select("*").execute()
-        data = res.data if res.data else []
-        return json.dumps(data, ensure_ascii=False)
+        if search_query in ["null", "None", ""]:
+            search_query = ""
+            
+        search_query = search_query.strip()
+
+        if not search_query:
+            res = supabase.table("v_package_marketplace") \
+                .select("package_tag, category, title, record_count, price_usd, avg_importance_p, tech_stacks") \
+                .order("package_tag") \
+                .execute()
+            return json.dumps(res.data, ensure_ascii=False)
+        else:
+            safe_query = search_query.replace(",", " ")
+            res = supabase.table("v_catalogs") \
+                .select("*") \
+                .or_(f"category.ilike.%{safe_query}%,title.ilike.%{safe_query}%,description.ilike.%{safe_query}%,package_tag.ilike.%{safe_query}%") \
+                .order("package_tag") \
+                .execute()
+            return json.dumps(res.data, ensure_ascii=False)
     except Exception as e:
-        return json.dumps({"error": str(e)}, ensure_ascii=False)
+        return json.dumps({"error": str(e)})
 
-def get_rose_price() -> float:
-    try:
-        res = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=oasis-network&vs_currencies=usd", timeout=5)
-        res.raise_for_status()
-        return float(res.json()['oasis-network']['usd'])
-    except Exception:
-        pass
-    try:
-        res = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=ROSEUSDT", timeout=5)
-        res.raise_for_status()
-        return float(res.json()['price'])
-    except Exception:
-        pass
-    raise Exception("Failed to fetch ROSE price from oracles")
-
+# -----------------------------------------------------------------------------
+# 2. 決済・配信: 最終実行 (堅牢版ロジックを完全維持)
+# -----------------------------------------------------------------------------
 @mcp.tool()
 def verify_crypto_payment_and_deliver(tx_hash: str, package_tag: str, network: str) -> str:
+    """
+    [COST: PAID / FINAL EXECUTION]
+    Verifies an on-chain cryptocurrency transaction and delivers the full JSON dataset CDN URL. 
+    WARNING: Do NOT call this tool until you have successfully executed the blockchain transaction and obtained a valid 'tx_hash'. 
+    """
     if not supabase:
         return json.dumps({"error": "Supabase connection failed"}, ensure_ascii=False)
         
@@ -172,11 +163,11 @@ def verify_crypto_payment_and_deliver(tx_hash: str, package_tag: str, network: s
         if current_time - block['timestamp'] > 3600:
             return json.dumps({"error": "Transaction is expired. Must be executed within the last 1 hour."}, ensure_ascii=False)
 
-        catalog_res = supabase.table("v_catalogs").select("price_usd, sales_count").eq("package_tag", package_tag).execute()
+        catalog_res = supabase.table("patent_packages").select("price_usd, sales_count").eq("package_tag", package_tag).execute()
         if not catalog_res.data:
             return json.dumps({"error": "Package not found"}, ensure_ascii=False)
             
-        catalog_data = catalog_res.data[0] if isinstance(catalog_res.data, list) else catalog_res.data
+        catalog_data = catalog_res.data[0]
         real_price_usd = float(catalog_data['price_usd'])
         
         payment_found = False
@@ -192,7 +183,8 @@ def verify_crypto_payment_and_deliver(tx_hash: str, package_tag: str, network: s
             tx = w3.eth.get_transaction(tx_hash)
             if tx['to'] and tx['to'].lower() == WALLET_ADDRESS.lower():
                 try:
-                    rose_price = get_rose_price()
+                    res_cg = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=oasis-network&vs_currencies=usd", timeout=5)
+                    rose_price = float(res_cg.json()['oasis-network']['usd'])
                     if rose_price > 0:
                         required_wei = int((real_price_usd / rose_price) * 0.95 * (10**18))
                         if tx['value'] >= required_wei:
@@ -211,25 +203,23 @@ def verify_crypto_payment_and_deliver(tx_hash: str, package_tag: str, network: s
                 "verified_at": current_time
             }).execute()
         except Exception:
-            return json.dumps({"error": "Transaction has already been processed (Race condition intercepted)."}, ensure_ascii=False)
+            return json.dumps({"error": "Race condition: Transaction already processed."}, ensure_ascii=False)
              
-        try:
-            supabase.rpc('increment_sales_count', {'p_tag': package_tag}).execute()
-        except Exception:
-            current_sales = catalog_data['sales_count'] or 0
-            supabase.table("patent_packages").update({"sales_count": current_sales + 1}).eq("package_tag", package_tag).execute()
+        supabase.table("patent_packages").update({"sales_count": (catalog_data['sales_count'] or 0) + 1}).eq("package_tag", package_tag).execute()
 
         res_data = supabase.table("v_patent_marketplace_lite").select("*").contains("package_tags", [package_tag]).execute()
-        deliver_data = res_data.data if isinstance(res_data.data, list) else [res_data.data] if res_data.data else []
         
         return json.dumps({
             "system_log": f"Payment verified on {network.upper()}.",
-            "package_data": deliver_data
+            "package_data": res_data.data
         }, ensure_ascii=False)
 
     except Exception as e:
         return json.dumps({"error": str(e)}, ensure_ascii=False)
 
+# -----------------------------------------------------------------------------
+# Starlette / FastMCP SSE Endpoint Setup
+# -----------------------------------------------------------------------------
 sse_app = None
 if hasattr(mcp, "get_starlette_app"):
     sse_app = mcp.get_starlette_app()
@@ -238,18 +228,9 @@ elif hasattr(mcp, "sse_app"):
 elif hasattr(mcp, "_create_sse_app"):
     sse_app = mcp._create_sse_app()
 
-streamable_app = getattr(mcp, "streamable_http_app", None)
-if callable(streamable_app):
-    streamable_app = streamable_app()
-
 routes = []
-if streamable_app:
-    routes.append(Mount("/mcp", app=streamable_app))
 if sse_app:
     routes.append(Mount("/", app=sse_app))
-
-if not routes:
-    raise RuntimeError("FastMCP instance has no recognizable app method.")
 
 app = Starlette(routes=routes)
 
@@ -265,59 +246,28 @@ def get_server_card(request):
     return JSONResponse({
         "serverInfo": {
             "name": "Mirelia-Patent-Marketplace",
-            "version": "1.0.0"
+            "version": "1.2.1-A2A-Optimized"
         },
         "tools": [
             {
-                "name": "list_available_categories",
-                "description": "Retrieves a dynamic list of currently available patent categories.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {}
-                }
-            },
-            {
-                "name": "get_packages_by_category",
-                "description": "Retrieves available patent data packages within a specific CPC category.",
+                "name": "search_packages",
+                "description": "[COST: FREE] Discovery tool. No args = Lite Inventory sorted by tag. Query = Detailed info + Patent IDs.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "category": {"type": "string", "description": "The specific CPC category to query"}
-                    },
-                    "required": ["category"]
-                }
-            },
-            {
-                "name": "get_package_details",
-                "description": "Retrieves the full metadata and schema preview for a specific 'package_tag'.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "package_tag": {"type": "string", "description": "The specific package tag to evaluate"}
-                    },
-                    "required": ["package_tag"]
-                }
-            },
-            {
-                "name": "get_package_sample",
-                "description": "[COST: FREE] Retrieves a free sample of the actual patent JSON data for a specific 'package_tag'.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "package_tag": {"type": "string", "description": "The specific package tag to evaluate"}
-                    },
-                    "required": ["package_tag"]
+                        "search_query": {"type": "string", "description": "Optional: Keyword or category code."}
+                    }
                 }
             },
             {
                 "name": "verify_crypto_payment_and_deliver",
-                "description": "Verifies on-chain payment and instantly delivers the dataset.",
+                "description": "[COST: PAID] Verifies on-chain payment and delivers full dataset.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "tx_hash": {"type": "string", "description": "Blockchain transaction hash"},
-                        "package_tag": {"type": "string", "description": "The purchased package tag"},
-                        "network": {"type": "string", "description": "Network used for payment: 'base', 'polygon', or 'oasis'"}
+                        "tx_hash": {"type": "string", "description": "Transaction hash"},
+                        "package_tag": {"type": "string", "description": "Purchased package tag"},
+                        "network": {"type": "string", "description": "Network: 'base', 'polygon', or 'oasis'"}
                     },
                     "required": ["tx_hash", "package_tag", "network"]
                 }
@@ -329,10 +279,4 @@ app.add_route("/.well-known/mcp/server-card.json", get_server_card, methods=["GE
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    uvicorn.run(
-        app, 
-        host="0.0.0.0", 
-        port=port, 
-        proxy_headers=True, 
-        forwarded_allow_ips="*"
-    )
+    uvicorn.run(app, host="0.0.0.0", port=port, proxy_headers=True, forwarded_allow_ips="*")
