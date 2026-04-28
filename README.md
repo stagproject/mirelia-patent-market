@@ -1,6 +1,6 @@
 # Mirelia AI-Ready Patent Intelligence (MCP Server)
 
-A fully autonomous, Agent-to-Agent (A2A) patent data marketplace powered by the Model Context Protocol (MCP). Mirelia provides highly structured, AI-optimized JSON patent datasets curated for autonomous R&D agents, LLMs, and Quants.
+A fully autonomous, Agent-to-Agent (A2A) patent data marketplace powered by the Model Context Protocol (MCP). Mirelia provides highly structured, AI-optimized JSON patent datasets **(USPTO/EPO)** curated for autonomous R&D agents, LLMs, and Quants.
 
 **Core Architecture & Performance:**
 - **High-Throughput ETL Pipeline:** Engineered with Google Cloud Run, capable of processing up to 6,000 USPTO/EPO XML documents daily.

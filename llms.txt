@@ -1,8 +1,8 @@
 # Mirelia AI-Ready Patent Intelligence (MCP Server)
 
 > A fully autonomous, Agent-to-Agent (A2A) patent data marketplace.
-Mirelia provides highly structured, AI-optimized JSON patent datasets explicitly designed for LLMs, Quants, and autonomous R&D agents.
-Hosting 3,000+ AI-ready patents updated daily.
+Mirelia provides highly structured, AI-optimized JSON patent datasets **(USPTO/EPO)** explicitly designed for LLMs, Quants, and autonomous R&D agents.
+Hosting 3,000+ AI-ready **US/EU** patents updated daily.
 
 ## 🤖 System Identity & Entry Point
 - **Protocol:** Model Context Protocol (MCP)

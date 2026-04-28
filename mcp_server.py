@@ -244,30 +244,30 @@ app.add_middleware(
 
 def get_server_card(request):
     return JSONResponse({
-        "serverInfo": {
-            "name": "Mirelia-Patent-Marketplace",
-            "version": "1.2.1-A2A-Optimized"
-        },
+        "mcp_version": "1.0.0",
+        "name": "Mirelia-Patent-Marketplace",
+        "version": "1.2.1-A2A-Optimized",
+        "description": "Global A2A patent marketplace providing AI-optimized structured JSON datasets (USPTO/EPO).",
         "tools": [
             {
                 "name": "search_packages",
-                "description": "[COST: FREE] Discovery tool. No args = Lite Inventory sorted by tag. Query = Detailed info + Patent IDs.",
+                "description": "[COST: FREE] Discovery tool for USPTO/EPO patents. No args = Lite Inventory. Query = Detailed info + Patent IDs.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "search_query": {"type": "string", "description": "Optional: Keyword or category code."}
+                        "search_query": {"type": "string", "description": "Optional: Keyword or CPC code (e.g., 'G06')."}
                     }
                 }
             },
             {
                 "name": "verify_crypto_payment_and_deliver",
-                "description": "[COST: PAID] Verifies on-chain payment and delivers full dataset.",
+                "description": "[COST: PAID] Verifies on-chain payment and delivers full dataset via CDN.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "tx_hash": {"type": "string", "description": "Transaction hash"},
-                        "package_tag": {"type": "string", "description": "Purchased package tag"},
-                        "network": {"type": "string", "description": "Network: 'base', 'polygon', or 'oasis'"}
+                        "tx_hash": {"type": "string", "description": "Blockchain transaction hash"},
+                        "package_tag": {"type": "string", "description": "Target package tag (e.g., 'G06_AI')"},
+                        "network": {"type": "string", "description": "Payment network: 'base', 'polygon', or 'oasis'"}
                     },
                     "required": ["tx_hash", "package_tag", "network"]
                 }
@@ -276,12 +276,11 @@ def get_server_card(request):
     })
 
 def get_agent_spec(request):
-    content = """
-# Mirelia AI-Ready Patent Intelligence (MCP Server)
+    content = """# Mirelia AI-Ready Patent Intelligence (MCP Server)
 
 > A fully autonomous, Agent-to-Agent (A2A) patent data marketplace.
-Mirelia provides highly structured, AI-optimized JSON patent datasets explicitly designed for LLMs, Quants, and autonomous R&D agents.
-Hosting 3,000+ AI-ready patents updated daily.
+Mirelia provides highly structured, AI-optimized JSON patent datasets **(USPTO/EPO)** explicitly designed for LLMs, Quants, and autonomous R&D agents.
+Hosting 3,000+ AI-ready **US/EU** patents updated daily.
 
 ## 🤖 System Identity & Entry Point
 - **Protocol:** Model Context Protocol (MCP)
